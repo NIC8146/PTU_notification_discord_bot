@@ -3,7 +3,7 @@ from selenium.webdriver.firefox.options import Options
 import discord
 import shutil
 from time import sleep
-from os import listdir, remove, path,mkdir, getcwd
+from os import listdir, remove, path,mkdir, getcwd, environ
 from threading import *
 import asyncio
 from selenium.webdriver.common.by import By
@@ -24,7 +24,14 @@ if path.isdir(file_path):
     pass
 else:
     mkdir(file_path)
-previous_pdf_name_onsite = "abc"
+
+if not path.isfile("previousfile.txt"):
+    with open("previousfile.txt","w") as f:
+        f.write("abc")
+
+with open("previousfile.txt","r") as f:
+    previous_pdf_name_onsite =f.read()
+
 channels_file = "channels.txt"
 
 # Create file if file is not present
@@ -36,6 +43,18 @@ if not path.isfile(channels_file):
 with open(channels_file,"r") as channelfile:
     server_channels = channelfile.read().splitlines()
 server_channels = [int(i) for i in server_channels]
+
+# Present working directoory
+cwd = getcwd()
+
+# Get the current value of PATH
+current_path = environ.get('PATH', '')
+
+# Append the directory to the PATH if it's not already there
+if cwd not in current_path.split(":"):
+    new_path = current_path + ":" + cwd
+    environ['PATH'] = new_path
+
 
 # webdriver options
 options = Options()
@@ -71,8 +90,10 @@ def download_pdf(loop,):
 
         # check for new pdf
         if previous_pdf_name_onsite != new_pdf_name_onsite:
-
             previous_pdf_name_onsite = new_pdf_name_onsite
+            with open("previousfile.txt","w") as f:
+                f.write(previous_pdf_name_onsite)
+
 
             # locate download item element
             download_element = driver.find_element(By.CSS_SELECTOR, "#root > div:nth-child(2) > div > div > div:nth-child(1) > div > div > div.MuiBox-root.jss12 > div > div.MuiGrid-root.right-align.MuiGrid-item.MuiGrid-grid-xs-12.MuiGrid-grid-sm-4 > span")
@@ -92,13 +113,12 @@ def download_pdf(loop,):
 
             # upload pdf to channels
             for x in server_channels[:]:
-                with open(f"{file_path}/{pdf_on_drive[0]}", 'rb') as f:
+                with open(f"PTU_notify/{pdf_on_drive[0]}", 'rb') as f:
                     try:
                         channel_by_ID = client.get_channel(x)
                         coro = channel_by_ID.send(f"{previous_pdf_name_onsite}",file=discord.File(f))
                         future = asyncio.run_coroutine_threadsafe(coro, loop)
                         future.result()
-                        print(channel_by_ID)
                     except:
                         try:
                             server_channels.remove(x)
@@ -109,7 +129,8 @@ def download_pdf(loop,):
             # delete pdf from drive
             remove(f"{file_path}/{pdf_on_drive[0]}")
             print("new file sent")
-            
+        else:
+            print("present") 
         # sleep 12 hours
         sleep(43200)
 
