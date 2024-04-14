@@ -10,6 +10,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import config
+from time import gmtime, strftime
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -45,6 +46,10 @@ driver.command_executor._commands["send_command"] = ("POST", '/session/$sessionI
 params = {'cmd': 'Page.setDownloadBehavior', 'params': {'behavior': 'allow', 'downloadPath': file_path}}
 command_result = driver.execute("send_command", params)
 
+def logs(log):
+    with open("bot.log","a") as f:
+        f.write(f"[+] {strftime('%Y-%m-%d %H:%M:%S', gmtime())} {log} ")
+
 # write to file
 def write_to_file(server_channels,channels_file):
     with open(channels_file,"w") as channelfile:
@@ -64,7 +69,7 @@ def download_pdf(loop,):
         # wait for text available on site and locate for css element
         element = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, "#root > div:nth-child(2) > div > div > div:nth-child(1) > div > div > div.MuiBox-root.jss11 > div > div")))
 
-        print("page loaded....")
+        logs("page loaded....")
         # get pdf name text
         new_pdf_name_onsite = element.text
 
@@ -78,7 +83,7 @@ def download_pdf(loop,):
             # cick on element to download
             download_element.click()
 
-            print("pdf downloading....")
+            logs("pdf downloading....")
 
             # check for file in drive
             pdf_on_drive = listdir(file_path)
@@ -87,7 +92,7 @@ def download_pdf(loop,):
             while pdf_on_drive == []:
                 sleep(5)
                 pdf_on_drive = listdir(file_path)
-            print("pdf downloaded")
+            logs("pdf downloaded")
 
             # upload pdf to channels
             for x in server_channels[:]:
@@ -97,7 +102,7 @@ def download_pdf(loop,):
                         coro = channel_by_ID.send(f"{previous_pdf_name_onsite}",file=discord.File(f))
                         future = asyncio.run_coroutine_threadsafe(coro, loop)
                         future.result()
-                        print(channel_by_ID)
+                        logs(channel_by_ID)
                     except:
                         try:
                             server_channels.remove(x)
@@ -107,12 +112,12 @@ def download_pdf(loop,):
            
             # delete pdf from drive
             remove(f"{file_path}\\{pdf_on_drive[0]}")
-            print("new file sent")
+            logs("new file sent")
         sleep(43200)
 
 @client.event
 async def on_ready():
-    print(f'We have logged in as {client.user}')
+    logs(f'We have logged in as {client.user}')
 
 
 @client.event
@@ -138,8 +143,8 @@ async def on_message(message):
             # write new updated list to file
             write_to_file(server_channels,channels_file)
             await message.channel.send('PTU notifications stopped on this channel')
-            print("\033[0;31ma channel get removed\033[0m\n")
-            print(f"\033[0;32mTotal number of channels {len(server_channels)}\033[0m\n")
+            logs("\033[0;31ma channel get removed\033[0m\n")
+            logs(f"\033[0;32mTotal number of channels {len(server_channels)}\033[0m\n")
         except:
             await message.channel.send('This channel is not activated!!')
 
@@ -154,8 +159,8 @@ async def on_message(message):
         # write new updated list to file
         write_to_file(server_channels,channels_file)
         await message.channel.send('PTU notifications stoped on all channels of this server')
-        print("\033[0;31mA server disabled\033[0m\n")
-        print(f"\033[0;32mTotal number of channels {len(server_channels)}\033[0m\n")
+        logs("\033[0;31mA server disabled\033[0m\n")
+        logs(f"\033[0;32mTotal number of channels {len(server_channels)}\033[0m\n")
 
     if message.content.startswith('!!setup_ptu'):
         text_channel_id = message.channel.id
@@ -165,8 +170,8 @@ async def on_message(message):
             # write new updated list to file
             write_to_file(server_channels,channels_file)
             await message.channel.send('PTU notifications started on this channel')
-            print("\033[0;32mNew channel added\n")
-            print(f"Total number of channels {len(server_channels)}\033[0m\n")
+            logs("\033[0;32mNew channel added\n")
+            logs(f"Total number of channels {len(server_channels)}\033[0m\n")
         else:
             await message.channel.send('This channel already recives notification/pdf')
 
@@ -175,17 +180,17 @@ async def on_message(message):
             loop = asyncio.get_running_loop()
             notification_start = Thread(target=download_pdf, args=(loop,))
             notification_start.start()
-            print("run_ptu")
+            logs("run_ptu")
             started=True
         else:
-            print(f"\033[0;31mAlready started\033[0m\n")
+            logs(f"\033[0;31mAlready started\033[0m\n")
 
 try:
     client.run(config.token)
 except Exception as e:
     if "Cannot connect to host discord.com" in str(e):
-        print("check your internet connection\n")
+        logs("check your internet connection\n")
     else:
-        print(e)
+        logs(e)
     driver.close()
 
